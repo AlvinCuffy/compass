@@ -1,0 +1,14 @@
+{
+  "name": "compass",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal daily operating dashboard: morning sequence, daily checklist with carryover, and a 7-day view.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node build.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

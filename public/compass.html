@@ -1,0 +1,838 @@
+<title>Compass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+  /* One deliberate look: a night-sky glass dashboard. */
+  :root {
+    color-scheme: dark;
+    --night: #070B1C;
+    --night-2: #0D1433;
+    --panel: rgba(18, 25, 54, .74);
+    --panel-solid: #121936;
+    --inset: rgba(255, 255, 255, .045);
+    --line: rgba(255, 255, 255, .08);
+    --line-strong: rgba(255, 255, 255, .16);
+    --ink: #EEF1FA;
+    --muted: #8D96B8;
+    --faint: #5B6488;
+    --blue: #3D5BFF;
+    --blue-2: #6F8BFF;
+    --blue-soft: #A9B8FF;
+    --green: #3EDB86;
+    --carried: #FF9D6C;
+    --radius: 24px;
+    --font: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  html { background: var(--night); }
+  body {
+    min-height: 100vh;
+    color: var(--ink);
+    font: 15px/1.5 var(--font);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    background: var(--night);
+  }
+  /* The sky sits on its own fixed layer so it never stretches or cuts off. */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-color: var(--night);
+    background-image:
+      radial-gradient(1px 1px at 23px 41px, rgba(255,255,255,.85), transparent 60%),
+      radial-gradient(1px 1px at 131px 87px, rgba(255,255,255,.6), transparent 60%),
+      radial-gradient(1.5px 1.5px at 187px 19px, rgba(255,255,255,.9), transparent 60%),
+      radial-gradient(1px 1px at 71px 163px, rgba(200,215,255,.7), transparent 60%),
+      radial-gradient(1px 1px at 211px 191px, rgba(255,255,255,.5), transparent 60%),
+      radial-gradient(1.3px 1.3px at 97px 223px, rgba(255,255,255,.7), transparent 60%),
+      radial-gradient(120% 55% at 50% 118%, rgba(255, 160, 110, .24), transparent 60%),
+      radial-gradient(90% 70% at 15% 0%, #16245C 0%, transparent 60%),
+      linear-gradient(180deg, var(--night-2), var(--night) 70%);
+    background-size: 240px 240px, 240px 240px, 240px 240px, 240px 240px, 240px 240px, 240px 240px, 100% 100%, 100% 100%, 100% 100%;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+  :focus-visible { outline: 2px solid var(--blue-2); outline-offset: 3px; border-radius: 10px; }
+
+  .shell {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 18px 48px;
+  }
+
+  /* Top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 26px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: 15px; }
+  .brand svg { width: 26px; height: 26px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--line); color: var(--ink); font-size: 13.5px; font-weight: 600;
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); white-space: nowrap;
+  }
+  .pill svg { width: 16px; height: 16px; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); flex: none; }
+
+  /* Hero */
+  .hero { margin-bottom: 22px; }
+  h1 { margin: 0; font-size: clamp(30px, 8.4vw, 44px); line-height: 1.08; font-weight: 700; letter-spacing: -.02em; text-wrap: balance; }
+  h1 .grad {
+    background: linear-gradient(90deg, #5A78FF, #9DB0FF);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p { margin: 10px 0 0; color: var(--muted); font-size: 15px; max-width: 44ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+
+  /* Layout: one column on phones; two columns on wide screens */
+  .grid { display: flex; flex-direction: column; gap: 16px; }
+  .col { display: contents; }
+  #note { order: 1; } #morning { order: 2; } #today { order: 3; } #week-card { order: 4; }
+  @media (min-width: 900px) {
+    .shell { padding-block: 28px 64px; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-items: start; gap: 18px; }
+    .col { display: flex; flex-direction: column; gap: 18px; }
+  }
+
+  /* Panels */
+  .panel {
+    position: relative; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line);
+    backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); padding: 20px; overflow: hidden;
+  }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  h2 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .count { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--blue-soft); background: rgba(61, 91, 255, .16); border: 1px solid rgba(111, 139, 255, .25); border-radius: 999px; padding: 4px 11px; white-space: nowrap; }
+  .kicker { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--blue-2); font-weight: 600; }
+  .kicker .ring { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid currentColor; }
+
+  /* Featured morning card: the blue glow */
+  .featured {
+    background:
+      radial-gradient(120% 70% at 50% 120%, rgba(90, 120, 255, .85), transparent 60%),
+      linear-gradient(180deg, #121C4E 0%, #172673 65%, #1E34A8 100%);
+    border-color: rgba(140, 160, 255, .22);
+    box-shadow: 0 18px 50px -20px rgba(61, 91, 255, .7);
+  }
+
+  /* Checkbox (the one animation: the check draws in) */
+  .box {
+    flex: none; width: 24px; height: 24px; border-radius: 50%;
+    border: 1.6px solid var(--line-strong); display: grid; place-items: center; background: rgba(255,255,255,.03);
+  }
+  .box svg { width: 13px; height: 13px; overflow: visible; }
+  .box path { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 20; stroke-dashoffset: 20; }
+  [aria-checked="true"] .box { background: linear-gradient(180deg, #5C7AFF, var(--blue)); border-color: transparent; box-shadow: 0 0 14px rgba(61, 91, 255, .7); }
+  [aria-checked="true"] .box path { stroke-dashoffset: 0; }
+  .anim[aria-checked="true"] .box { animation: fill .22s ease-out both; }
+  .anim[aria-checked="true"] .box path { animation: draw .32s .08s ease-out both; }
+  @keyframes fill { from { background: transparent; box-shadow: none; } }
+  @keyframes draw { from { stroke-dashoffset: 20; } to { stroke-dashoffset: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .anim[aria-checked="true"] .box, .anim[aria-checked="true"] .box path { animation: none; }
+  }
+  .label { font-weight: 600; transition: color .2s; }
+  [aria-checked="true"] .label { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(141, 150, 184, .6); }
+
+  /* Morning sequence: dots joined by a line */
+  .steps { list-style: none; margin: 4px 0 0; padding: 0; display: grid; }
+  .step { position: relative; padding-bottom: 20px; }
+  .step:last-child { padding-bottom: 0; }
+  .step::before { content: ""; position: absolute; left: 11.2px; top: 30px; bottom: 6px; width: 1.6px; background: linear-gradient(180deg, rgba(169,184,255,.5), rgba(169,184,255,.12)); }
+  .step:last-child::before { display: none; }
+  .step .row { display: grid; grid-template-columns: 24px 1fr; column-gap: 14px; align-items: start; width: 100%; padding-block: 2px; }
+  .step .label { font-size: 16px; }
+  .step-sub { color: var(--blue-soft); opacity: .8; font-size: 13.5px; font-weight: 500; }
+  .step .extra { margin: 10px 0 0 38px; }
+
+  details.prayer summary {
+    list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    height: 34px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    background: rgba(7, 11, 28, .45); border: 1px solid rgba(169, 184, 255, .2);
+  }
+  details.prayer summary::-webkit-details-marker { display: none; }
+  details.prayer summary::after { content: ""; width: 6px; height: 6px; border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+  details.prayer[open] summary::after { transform: translateY(1px) rotate(-135deg); }
+  details.prayer[open] summary .when-closed, details.prayer:not([open]) summary .when-open { display: none; }
+  .prayer-body {
+    margin-top: 12px; padding: 18px; border-radius: 18px; background: rgba(7, 11, 28, .55); border: 1px solid rgba(169, 184, 255, .14);
+    display: grid; gap: 18px;
+  }
+  .prayer-body h3 { margin: 0 0 6px; display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--blue-soft); }
+  .prayer-body h3 b { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: rgba(61, 91, 255, .3); color: #fff; letter-spacing: 0; font-size: 12px; }
+  .prayer-body p { margin: 0; font-size: 15.5px; line-height: 1.7; color: #DDE3F7; max-width: 62ch; }
+
+  /* Progress bar: striped */
+  .progress { display: flex; align-items: center; gap: 10px; margin: 2px 0 14px; }
+  .progress .lbl { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .bar { flex: 1; height: 26px; border-radius: 999px; background: var(--inset); border: 1px solid var(--line); overflow: hidden; }
+  .bar i {
+    display: block; height: 100%; width: 0; border-radius: 999px; transition: width .4s ease;
+    background: repeating-linear-gradient(-55deg, #5F7DFF 0 7px, #8FA4FF 7px 11px);
+    box-shadow: 0 0 16px rgba(61, 91, 255, .55);
+  }
+  .pct { font-size: 12.5px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: rgba(169, 184, 255, .9); color: #0B1236; font-variant-numeric: tabular-nums; min-width: 48px; text-align: center; }
+
+  /* Checklist */
+  .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .item { display: flex; align-items: center; gap: 6px; border-radius: 18px; background: var(--inset); border: 1px solid var(--line); padding-right: 8px; }
+  .item .row { flex: 1; display: flex; align-items: center; gap: 14px; padding: 13px 8px 13px 14px; min-height: 56px; min-width: 0; }
+  .text { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+  .meta { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--blue-2); }
+  .meta.carried { color: var(--carried); }
+  .meta.carried::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+  [aria-checked="true"] .meta { opacity: .55; }
+  .icon-btn {
+    flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(255,255,255,.06); border: 1px solid var(--line); color: var(--muted);
+  }
+  .icon-btn svg { width: 14px; height: 14px; }
+  .icon-btn:hover { color: var(--carried); border-color: rgba(255, 157, 108, .4); }
+  .group-label { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin: 18px 4px 10px; }
+  .add { display: flex; gap: 8px; margin-top: 14px; }
+  .add input {
+    flex: 1; min-width: 0; height: 48px; padding: 0 18px; border-radius: 999px; font: inherit; font-size: 16px; color: var(--ink);
+    background: rgba(7, 11, 28, .5); border: 1px solid var(--line);
+  }
+  .add input::placeholder { color: var(--faint); }
+  .add input:focus { outline: none; border-color: rgba(111, 139, 255, .6); }
+  .add button {
+    flex: none; height: 48px; padding: 0 20px; border-radius: 999px; font-weight: 700; font-size: 14px; color: var(--blue-soft);
+    background: #0A1030; border: 1px solid rgba(111, 139, 255, .35); box-shadow: 0 0 24px -4px rgba(61, 91, 255, .7);
+  }
+  .add button:disabled { opacity: .45; box-shadow: none; cursor: default; }
+
+  /* Today's order note */
+  .note {
+    background:
+      radial-gradient(90% 60% at 60% -10%, rgba(160, 180, 255, .55), transparent 65%),
+      var(--panel);
+  }
+  .order { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .order li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: rgba(7, 11, 28, .4); border: 1px solid var(--line); font-weight: 600; }
+  .order li b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; background: rgba(255,255,255,.07); color: var(--blue-soft); }
+  .order li:first-child b { background: linear-gradient(180deg, #5C7AFF, var(--blue)); color: #fff; box-shadow: 0 0 14px rgba(61, 91, 255, .6); }
+  .order li span { color: var(--muted); font-weight: 500; font-size: 13px; margin-left: auto; }
+  .reps { margin: 14px 2px 0; font-size: 13.5px; color: var(--blue-soft); border-left: 2px solid rgba(111, 139, 255, .6); padding-left: 10px; }
+
+  /* Week chart: striped capsules */
+  .chart { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; margin-top: 8px; }
+  .col-day { display: grid; justify-items: center; gap: 8px; position: relative; }
+  .cap {
+    position: relative; width: 100%; max-width: 30px; height: 96px; border-radius: 999px; overflow: hidden;
+    border: 1.5px solid rgba(169, 184, 255, .22); background: rgba(255,255,255,.02);
+  }
+  .cap i { position: absolute; inset: auto 0 0 0; height: calc(var(--p) * 100%); border-radius: 999px;
+    background: repeating-linear-gradient(-55deg, rgba(143, 164, 255, .85) 0 5px, rgba(143, 164, 255, .25) 5px 9px); }
+  .cap.full { border-color: transparent; background: linear-gradient(180deg, #7C96FF, var(--blue)); box-shadow: 0 0 16px -2px rgba(61, 91, 255, .7); }
+  .cap.full i { display: none; }
+  .cap.future { border-style: dashed; border-color: rgba(169, 184, 255, .18); background: none; }
+  .col-day.today .cap { border: 2px solid #fff; box-shadow: 0 0 18px -2px rgba(255,255,255,.5); }
+  .col-day.today .cap i { background: repeating-linear-gradient(-55deg, #fff 0 5px, rgba(255,255,255,.35) 5px 9px); }
+  .col-day .dname { font-size: 12px; color: var(--faint); font-weight: 600; }
+  .col-day.today .dname { color: var(--ink); }
+  .col-day .tip { position: absolute; top: -30px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--blue); color: #fff; box-shadow: 0 0 12px rgba(61, 91, 255, .7); font-variant-numeric: tabular-nums; }
+  .col-day .tip::after { content: ""; position: absolute; left: 50%; bottom: -4px; width: 7px; height: 7px; background: var(--blue); transform: translateX(-50%) rotate(45deg); z-index: -1; }
+  .chart-wrap { padding-top: 30px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 16px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 9px; height: 14px; border-radius: 99px; border: 1.5px solid rgba(169, 184, 255, .35); display: inline-block; }
+  .legend i.f { background: var(--blue); border-color: var(--blue); }
+  .legend i.p { background: linear-gradient(0deg, rgba(143,164,255,.8) 50%, transparent 50%); }
+  .legend i.d { border-style: dashed; }
+
+  footer { margin-top: 22px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--faint); }
+  footer .err { color: var(--carried); }
+  .linkish { color: var(--blue-2); font-weight: 600; margin-left: 8px; }
+  .connect { margin-top: 18px; }
+  .connect p, .connect ol { color: var(--muted); font-size: 14px; margin: 8px 0 0; max-width: 60ch; }
+  .connect ol { padding-left: 20px; display: grid; gap: 6px; }
+  .connect a { color: var(--blue-soft); }
+  .connect b { color: var(--ink); }
+  .connect .fine { font-size: 12.5px; color: var(--faint); }
+  .loading .grid { opacity: .55; pointer-events: none; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+
+<div class="shell loading" id="app">
+  <div class="top">
+    <div class="brand">
+      <svg viewBox="0 0 26 26" aria-hidden="true"><path d="M13 2 L16.5 13 L13 24 L9.5 13 Z" fill="#3D5BFF"/><path d="M13 2 L16.5 13 L9.5 13 Z" fill="#A9B8FF"/></svg>
+      Compass
+    </div>
+    <span class="pill" id="date-pill">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>
+      <span id="date-short"></span>
+    </span>
+  </div>
+
+  <div class="hero">
+    <h1 id="date">&nbsp;</h1>
+    <p>Reps come first — identity follows.</p>
+    <div class="chips">
+      <span class="pill"><span class="dot"></span><span id="done-chip">0 done</span></span>
+      <span class="pill" id="carried-chip" hidden><span class="dot" style="background:var(--carried);box-shadow:0 0 10px var(--carried)"></span><span id="carried-text"></span></span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <section class="panel featured" id="morning" aria-labelledby="h-morning">
+        <div class="panel-head">
+          <div>
+            <span class="kicker"><span class="ring"></span>First thing</span>
+            <h2 id="h-morning" style="margin-top:4px">Morning</h2>
+          </div>
+          <span class="count" id="morning-count"></span>
+        </div>
+        <ol class="steps">
+          <li class="step">
+            <button class="row" id="m0" role="checkbox" aria-checked="false">
+              <span class="box"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.4l3 3 6-6.6"/></svg></span>
+              <span><span class="label">Prayer</span></span>
+            </button>
+            <div class="extra">
+              <details class="prayer" id="prayer">
+                <summary><span class="when-closed">Read the prayer</span><span class="when-open">Hide the prayer</span></summary>
+                <div class="prayer-body">
+                  <div>
+                    <h3><b>A</b>Adoration</h3>
+                    <p>God, You are good, You are faithful, and You are the one who sees me fully — thank You for who You are before I ask for anything.</p>
+                  </div>
+                  <div>
+                    <h3><b>T</b>Thanksgiving</h3>
+                    <p>Thank You for salvation and Your presence with me. Thank You for my health and strength this morning. Thank You for peace of mind where I have it. Thank You for Rashida, my kids, and the people You've placed around me to build with. Thank You for the ability to provide and for what this business can become.</p>
+                  </div>
+                  <div>
+                    <h3><b>C</b>Confession</h3>
+                    <p>Lord, I bring You what I'm still carrying — the pull toward filling idle time with old habits, and the way I protect myself by leaving instead of staying present in hard moments. I don't want to keep managing these on my own. Search me and show me where I'm still choosing the old pattern.</p>
+                  </div>
+                  <div>
+                    <h3><b>S</b>Supplication</h3>
+                    <p>What You think, let me think. What You want, let me want. Bless my heart with what my heart needs, my hands with what my hands need, my head with what my head needs. Put me in the right place at the right time, with the right people, saying the right words. Let me work for You today — do what pleases You, what I'm gifted at, what serves people, and what provides for my family. And where I'm tempted to fill empty time or walk away instead of staying, give me the strength to choose differently, today.</p>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </li>
+          <li class="step">
+            <button class="row" id="m1" role="checkbox" aria-checked="false">
+              <span class="box"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.4l3 3 6-6.6"/></svg></span>
+              <span><span class="label">Reading</span><div class="step-sub">Scripture or personal development audio.</div></span>
+            </button>
+          </li>
+        </ol>
+      </section>
+
+      <section class="panel" id="today" aria-labelledby="h-today">
+        <div class="panel-head">
+          <div>
+            <h2 id="h-today">Today</h2>
+            <div class="sub">Set up tomorrow before the day closes.</div>
+          </div>
+          <span class="count" id="today-count"></span>
+        </div>
+        <div class="progress" aria-hidden="true">
+          <span class="lbl">Progress</span>
+          <span class="bar"><i id="bar"></i></span>
+          <span class="pct" id="pct">0%</span>
+        </div>
+        <ul class="list" id="fixed"></ul>
+        <div class="group-label" id="tasks-label" hidden>Also today</div>
+        <ul class="list" id="tasks"></ul>
+        <form class="add" id="add-form" autocomplete="off">
+          <label for="new-task" class="sr">New task</label>
+          <input id="new-task" type="text" placeholder="Add a task for today" enterkeyhint="done" maxlength="200">
+          <button type="submit" id="add-btn" disabled>Add task</button>
+        </form>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel note" id="note" aria-labelledby="h-order">
+        <div class="panel-head"><h2 id="h-order">Today's order</h2></div>
+        <ol class="order">
+          <li><b>1</b>God <span>first</span></li>
+          <li><b>2</b>Family <span>second</span></li>
+          <li><b>3</b>Business <span>third</span></li>
+        </ol>
+        <p class="reps">Consistency and direction over results.</p>
+      </section>
+
+      <section class="panel" id="week-card" aria-labelledby="h-week">
+        <div class="panel-head">
+          <div>
+            <h2 id="h-week">This Week</h2>
+            <div class="sub" id="week-sub"></div>
+          </div>
+          <span class="count" id="week-range"></span>
+        </div>
+        <div class="chart-wrap"><div class="chart" id="week"></div></div>
+        <div class="legend" aria-hidden="true">
+          <span><i class="f"></i>All done</span>
+          <span><i class="p"></i>Some done</span>
+          <span><i></i>Nothing done</span>
+          <span><i class="d"></i>Ahead</span>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel connect" id="connect" hidden aria-labelledby="h-connect">
+    <h2 id="h-connect">Sync across devices</h2>
+    <p>Compass can keep your days in a secret gist on your GitHub account, so your phone and laptop see the same checklist.</p>
+    <ol>
+      <li><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Compass" target="_blank" rel="noopener">Create a GitHub token</a> with only the <b>gist</b> box ticked. Pick "No expiration" or a date you'll remember.</li>
+      <li>Paste it below. Do this once on each device.</li>
+    </ol>
+    <form class="add" id="connect-form" autocomplete="off">
+      <label for="gh-token" class="sr">GitHub token</label>
+      <input id="gh-token" type="password" placeholder="ghp_…" spellcheck="false" autocapitalize="off">
+      <button type="submit" id="connect-btn">Connect</button>
+    </form>
+    <p class="fine">The token is stored only in this browser. It can read and write your gists, nothing else.</p>
+  </section>
+
+  <footer>
+    <span><span id="sync">Loading…</span> <button type="button" class="linkish" id="sync-btn" hidden></button></span>
+    <span id="err" class="err" hidden></span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const FIXED = [
+    "Tomorrow's post queued, if one's going out",
+    "Tomorrow's exposures named",
+    "3–4 relationship touchpoints named",
+    "House prepped for tomorrow",
+    "Today's content signals & DMs reviewed",
+  ];
+  const CHECK_SVG = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.4l3 3 6-6.6"/></svg>';
+  const X_SVG = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7"/></svg>';
+
+  // ---------- dates (local time) ----------
+  const pad = (n) => String(n).padStart(2, "0");
+  const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parse = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
+  const todayIso = () => iso(new Date());
+  const fmt = (s, o) => parse(s).toLocaleDateString("en-US", o);
+  const fmtCarried = (s, today) => {
+    const diff = Math.round((parse(today) - parse(s)) / 864e5);
+    if (diff === 1) return "yesterday";
+    if (diff > 1 && diff < 7) return fmt(s, { weekday: "short" });
+    return fmt(s, { month: "short", day: "numeric" });
+  };
+
+  // ---------- data ----------
+  const state = { days: {}, today: todayIso(), ready: false, anim: null };
+
+  const blank = (date) => ({ date, morning: [false, false], nightly: [false, false, false, false, false], tasks: [] });
+  const normalize = (e, date) => {
+    const b = blank(date);
+    if (!e) return b;
+    return {
+      date,
+      morning: b.morning.map((_, i) => !!(e.morning && e.morning[i])),
+      nightly: b.nightly.map((_, i) => !!(e.nightly && e.nightly[i])),
+      tasks: Array.isArray(e.tasks) ? e.tasks.filter((t) => t && typeof t.text === "string").map((t) => ({
+        id: String(t.id), text: t.text, done: !!t.done, carriedFrom: t.carriedFrom || null,
+      })) : [],
+    };
+  };
+  const clone = (e) => JSON.parse(JSON.stringify(e));
+
+  // Most recent saved day strictly before `date`.
+  function previousDay(date) {
+    let best = null;
+    for (const k of Object.keys(state.days)) if (k < date && (!best || k > best)) best = k;
+    return best;
+  }
+
+  // Display-only view of a day with no saved entry: carry forward what the
+  // last saved day left undone. Ids are deterministic so the view is stable.
+  function virtualDay(date) {
+    const e = blank(date);
+    const prev = previousDay(date);
+    if (!prev) return e;
+    const p = normalize(state.days[prev], prev);
+    const carriedTexts = new Set();
+    for (const t of p.tasks) {
+      if (t.done) continue;
+      e.tasks.push({ id: `c-${prev}-${t.id}`, text: t.text, done: false, carriedFrom: t.carriedFrom || prev });
+      carriedTexts.add(t.text);
+    }
+    FIXED.forEach((text, i) => {
+      // Skip if this item is already riding along from an earlier day.
+      if (!p.nightly[i] && !carriedTexts.has(text)) {
+        e.tasks.push({ id: `f-${prev}-${i}`, text, done: false, carriedFrom: prev });
+      }
+    });
+    return e;
+  }
+
+  const view = (date) => state.days[date] ? normalize(state.days[date], date) : virtualDay(date);
+
+  function tally(e) {
+    const total = e.morning.length + e.nightly.length + e.tasks.length;
+    const done = e.morning.filter(Boolean).length + e.nightly.filter(Boolean).length + e.tasks.filter((t) => t.done).length;
+    return { done, total, p: total ? done / total : 0 };
+  }
+
+  // Every change goes through here: the virtual view becomes real on first touch.
+  function mutate(fn, animKey) {
+    const date = state.today;
+    const e = clone(view(date));
+    fn(e);
+    state.days[date] = e;
+    state.anim = animKey || null;
+    render();
+    save(date);
+  }
+
+  const $ = (id) => document.getElementById(id);
+  function setError(msg) { const el = $("err"); el.textContent = msg; el.hidden = !msg; }
+
+  // ---------- storage ----------
+  // Artifact db when running on claude.ai; a GitHub Gist once connected;
+  // otherwise the bundled server's JSON API; otherwise this browser only.
+  const saving = {}, again = {};
+  async function save(date) {
+    if (saving[date]) { again[date] = true; return; }
+    saving[date] = true;
+    try {
+      do {
+        again[date] = false;
+        await store.saveDay(date, state.days[date]);
+      } while (again[date]);
+      setError("");
+    } catch (err) {
+      setError("Couldn't save that change. It's still on this screen; tap again once you're back online.");
+    } finally {
+      saving[date] = false;
+    }
+  }
+  const busy = () => Object.values(saving).some(Boolean);
+
+  function applyRemote(days) {
+    for (const [k, v] of Object.entries(days)) if (!saving[k]) state.days[k] = v;
+    state.ready = true;
+    render();
+  }
+
+  const dbStore = (db) => ({
+    kind: "db",
+    label: "Synced",
+    start() {
+      db.collection("days").orderBy("date", "desc").limit(90).onSnapshot(
+        (snap) => {
+          const days = {};
+          for (const d of snap.docs) days[d.id] = d.data();
+          applyRemote(days);
+        },
+        () => setError("Lost the connection to your saved days. Reload to reconnect."),
+      );
+    },
+    saveDay: (date, e) => db.doc("days/" + date).set(normalize(e, date)),
+  });
+
+  const httpStore = () => ({
+    kind: "http",
+    label: "Synced",
+    async start() {
+      const pull = async () => {
+        if (busy()) return;
+        const r = await fetch("api/days", { cache: "no-store" });
+        if (!r.ok) throw new Error(r.status);
+        applyRemote((await r.json()).days || {});
+      };
+      await pull();
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) pull().catch(() => {}); });
+    },
+    async saveDay(date, e) {
+      const r = await fetch("api/days/" + date, {
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(normalize(e, date)),
+      });
+      if (!r.ok) throw new Error(r.status);
+    },
+  });
+
+  const KEY = "compass.days";
+  const readLocal = () => { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (_) { return {}; } };
+  const localStore = () => ({
+    kind: "local",
+    label: "Saved on this device only",
+    start() { applyRemote(readLocal()); },
+    async saveDay() { localStorage.setItem(KEY, JSON.stringify(state.days)); },
+  });
+
+  // Sync through a secret GitHub Gist, for the static GitHub Pages build.
+  // The token (gist scope only) stays in this browser's storage.
+  const GH = "https://api.github.com";
+  const GIST_FILE = "compass-data.json";
+  const TOKEN_KEY = "compass.githubToken", GIST_KEY = "compass.gistId";
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+  const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} };
+
+  const gistStore = (token) => {
+    const gh = async (path, opts = {}) => {
+      const r = await fetch(GH + path, {
+        ...opts, cache: "no-store",
+        headers: { authorization: "Bearer " + token, accept: "application/vnd.github+json", ...(opts.body ? { "content-type": "application/json" } : {}) },
+      });
+      if (!r.ok) { const err = new Error("GitHub " + r.status); err.status = r.status; throw err; }
+      return r.json();
+    };
+    let gistId = lsGet(GIST_KEY);
+
+    async function findOrCreate() {
+      for (let page = 1; page <= 5; page++) {
+        const list = await gh(`/gists?per_page=100&page=${page}`);
+        const hit = list.find((g) => g.files && g.files[GIST_FILE]);
+        if (hit) return hit.id;
+        if (list.length < 100) break;
+      }
+      const created = await gh("/gists", {
+        method: "POST",
+        body: JSON.stringify({ public: false, description: "Compass daily data", files: { [GIST_FILE]: { content: JSON.stringify({ days: readLocal() }) } } }),
+      });
+      return created.id;
+    }
+
+    async function read() {
+      const g = await gh("/gists/" + gistId);
+      const f = g.files && g.files[GIST_FILE];
+      if (!f) return { days: {} };
+      const text = f.truncated ? await (await fetch(f.raw_url, { cache: "no-store" })).text() : f.content;
+      try { return JSON.parse(text || "{}"); } catch (_) { return { days: {} }; }
+    }
+
+    return {
+      kind: "gist",
+      label: "Synced with GitHub",
+      async start() {
+        if (gistId) { try { await gh("/gists/" + gistId); } catch (e) { if (e.status === 404) gistId = null; else throw e; } }
+        if (!gistId) { gistId = await findOrCreate(); lsSet(GIST_KEY, gistId); }
+        const pull = async () => { if (!busy()) applyRemote((await read()).days || {}); };
+        await pull();
+        document.addEventListener("visibilitychange", () => { if (!document.hidden) pull().catch(() => {}); });
+      },
+      async saveDay(date, e) {
+        // Re-read first so a save from this phone doesn't undo another device's day.
+        const data = await read();
+        data.days = data.days || {};
+        data.days[date] = normalize(e, date);
+        await gh("/gists/" + gistId, { method: "PATCH", body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(data) } } }) });
+      },
+    };
+  };
+
+  let store;
+  async function boot() {
+    const c = window.claude;
+    const db = c && typeof c.use === "function" ? await c.use("db").catch(() => null) : null;
+    const token = lsGet(TOKEN_KEY);
+    const candidates = db ? [dbStore(db)] : token ? [gistStore(token), localStore()] : [httpStore(), localStore()];
+    let gistFailed = false;
+    for (const s of candidates) {
+      try { store = s; await s.start(); break; } catch (_) { if (s.kind === "gist") gistFailed = true; store = null; }
+    }
+    if (gistFailed) setError("Couldn't reach your GitHub sync. Showing this device's copy; check your connection or reconnect below.");
+    renderSync();
+  }
+
+  // Footer: sync status, plus the GitHub connect panel where it applies.
+  function renderSync() {
+    $("sync").textContent = store ? store.label : "";
+    const canConnect = store && (store.kind === "local" || store.kind === "gist" || lsGet(TOKEN_KEY));
+    $("sync-btn").hidden = !canConnect;
+    $("sync-btn").textContent = lsGet(TOKEN_KEY) ? "Disconnect GitHub" : "Sync across devices";
+  }
+  $("sync-btn").addEventListener("click", () => {
+    if (lsGet(TOKEN_KEY)) {
+      // Keep a local copy so nothing disappears from this screen.
+      try { localStorage.setItem(KEY, JSON.stringify(state.days)); } catch (_) {}
+      lsSet(TOKEN_KEY, null); lsSet(GIST_KEY, null);
+      store = localStore(); renderSync();
+      return;
+    }
+    $("connect").hidden = !$("connect").hidden;
+    if (!$("connect").hidden) $("gh-token").focus();
+  });
+  $("connect-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const token = $("gh-token").value.trim();
+    if (!token) return;
+    const btn = $("connect-btn");
+    btn.disabled = true; btn.textContent = "Connecting…";
+    try {
+      const s = gistStore(token);
+      await s.start();
+      lsSet(TOKEN_KEY, token);
+      store = s;
+      // Push anything this device had that the gist doesn't.
+      for (const [date, e] of Object.entries(readLocal())) {
+        if (!state.days[date]) { state.days[date] = e; save(date); }
+      }
+      $("connect").hidden = true; $("gh-token").value = ""; setError("");
+      renderSync(); render();
+    } catch (e) {
+      setError(e.status === 401 ? "GitHub didn't accept that token. Create one with the gist scope and paste it again." : "Couldn't connect to GitHub. Check your connection and try again.");
+    } finally {
+      btn.disabled = false; btn.textContent = "Connect";
+    }
+  });
+
+  // ---------- render ----------
+
+  function checkRow({ key, checked, text, meta, carried, onToggle }) {
+    const b = document.createElement("button");
+    b.className = "row" + (state.anim === key ? " anim" : "");
+    b.setAttribute("role", "checkbox");
+    b.setAttribute("aria-checked", String(checked));
+    b.innerHTML = `<span class="box">${CHECK_SVG}</span><span class="text"><span class="label"></span></span>`;
+    b.querySelector(".label").textContent = text;
+    if (meta) {
+      const m = document.createElement("span");
+      m.className = "meta" + (carried ? " carried" : "");
+      m.textContent = meta;
+      b.querySelector(".text").appendChild(m);
+    }
+    b.addEventListener("click", onToggle);
+    return b;
+  }
+
+  function render() {
+    const today = state.today;
+    const e = view(today);
+    $("app").classList.toggle("loading", !state.ready);
+
+    const weekday = fmt(today, { weekday: "long" });
+    $("date").innerHTML = "";
+    const g = document.createElement("span");
+    g.className = "grad";
+    g.textContent = weekday + ",";
+    $("date").append(g, " " + fmt(today, { month: "long", day: "numeric" }));
+    $("date-short").textContent = fmt(today, { day: "numeric", month: "short" });
+
+    // Morning
+    [0, 1].forEach((i) => {
+      const b = $("m" + i);
+      b.setAttribute("aria-checked", String(e.morning[i]));
+      b.classList.toggle("anim", state.anim === "m" + i);
+    });
+    $("morning-count").textContent = `${e.morning.filter(Boolean).length} of 2`;
+
+    // Fixed nightly items
+    $("fixed").replaceChildren(...FIXED.map((text, i) => {
+      const li = document.createElement("li");
+      li.className = "item";
+      li.appendChild(checkRow({
+        key: "n" + i, checked: e.nightly[i], text,
+        onToggle: () => mutate((d) => { d.nightly[i] = !d.nightly[i]; }, "n" + i),
+      }));
+      return li;
+    }));
+
+    // Custom + carried tasks
+    $("tasks-label").hidden = e.tasks.length === 0;
+    $("tasks").replaceChildren(...e.tasks.map((t) => {
+      const li = document.createElement("li");
+      li.className = "item";
+      li.appendChild(checkRow({
+        key: "t" + t.id, checked: t.done, text: t.text,
+        meta: t.carriedFrom ? "Carried from " + fmtCarried(t.carriedFrom, today) : null, carried: !!t.carriedFrom,
+        onToggle: () => mutate((d) => { const x = d.tasks.find((y) => y.id === t.id); if (x) x.done = !x.done; }, "t" + t.id),
+      }));
+      const del = document.createElement("button");
+      del.className = "icon-btn";
+      del.setAttribute("aria-label", "Delete " + t.text);
+      del.innerHTML = X_SVG;
+      del.addEventListener("click", () => mutate((d) => { d.tasks = d.tasks.filter((y) => y.id !== t.id); }));
+      li.appendChild(del);
+      return li;
+    }));
+
+    const listDone = e.nightly.filter(Boolean).length + e.tasks.filter((t) => t.done).length;
+    const listTotal = FIXED.length + e.tasks.length;
+    $("today-count").textContent = `${listDone} of ${listTotal}`;
+    const all = tally(e);
+    const pct = Math.round(all.p * 100);
+    $("bar").style.width = pct + "%";
+    $("pct").textContent = pct + "%";
+    $("done-chip").textContent = `${all.done} of ${all.total} done`;
+    const carried = e.tasks.filter((t) => t.carriedFrom && !t.done).length;
+    $("carried-chip").hidden = carried === 0;
+    $("carried-text").textContent = `${carried} carried over`;
+
+    // Week, Monday through Sunday
+    const monday = addDays(today, -((parse(today).getDay() + 6) % 7));
+    const cells = [];
+    let wDone = 0, wTotal = 0;
+    for (let i = 0; i < 7; i++) {
+      const date = addDays(monday, i);
+      const col = document.createElement("div");
+      col.className = "col-day" + (date === today ? " today" : "");
+      const cap = document.createElement("div");
+      cap.className = "cap";
+      const fill = document.createElement("i");
+      cap.appendChild(fill);
+      let label, p = 0;
+      if (date > today) { cap.classList.add("future"); label = "ahead"; }
+      else {
+        const hasData = date === today || !!state.days[date];
+        if (hasData) { const t = tally(view(date)); p = t.p; wDone += t.done; wTotal += t.total; }
+        if (p >= 1) { cap.classList.add("full"); label = "everything done"; }
+        else if (p > 0) { label = Math.round(p * 100) + "% done"; }
+        else { label = "nothing done"; }
+      }
+      cap.style.setProperty("--p", p.toFixed(3));
+      col.setAttribute("role", "img");
+      col.setAttribute("aria-label", `${fmt(date, { weekday: "long" })}: ${label}`);
+      if (date === today) {
+        const tip = document.createElement("span");
+        tip.className = "tip";
+        tip.textContent = Math.round(p * 100) + "%";
+        col.appendChild(tip);
+      }
+      col.appendChild(cap);
+      const dn = document.createElement("span");
+      dn.className = "dname";
+      dn.textContent = fmt(date, { weekday: "short" });
+      col.appendChild(dn);
+      cells.push(col);
+    }
+    $("week").replaceChildren(...cells);
+    $("week-sub").textContent = wTotal ? `${wDone} of ${wTotal} done so far` : "Nothing logged yet";
+    const short = (s) => fmt(s, { month: "short", day: "numeric" });
+    $("week-range").textContent = `${short(monday)} – ${short(addDays(monday, 6))}`;
+
+    state.anim = null;
+  }
+
+  // ---------- events ----------
+  [0, 1].forEach((i) => $("m" + i).addEventListener("click", () =>
+    mutate((d) => { d.morning[i] = !d.morning[i]; }, "m" + i)));
+
+  const input = $("new-task"), addBtn = $("add-btn");
+  input.addEventListener("input", () => { addBtn.disabled = !input.value.trim(); });
+  $("add-form").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    const id = "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    mutate((d) => { d.tasks.push({ id, text, done: false, carriedFrom: null }); });
+    input.value = "";
+    addBtn.disabled = true;
+  });
+
+  // Roll over at midnight and when the phone wakes the page on a new day.
+  const checkDate = () => { const t = todayIso(); if (t !== state.today) { state.today = t; render(); } };
+  setInterval(checkDate, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) checkDate(); });
+
+  render();
+  boot();
+})();
+</script>
