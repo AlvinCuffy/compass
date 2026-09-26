@@ -241,6 +241,13 @@
 
   footer { margin-top: 22px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--faint); }
   footer .err { color: var(--carried); }
+  .linkish { color: var(--blue-2); font-weight: 600; margin-left: 8px; }
+  .connect { margin-top: 18px; }
+  .connect p, .connect ol { color: var(--muted); font-size: 14px; margin: 8px 0 0; max-width: 60ch; }
+  .connect ol { padding-left: 20px; display: grid; gap: 6px; }
+  .connect a { color: var(--blue-soft); }
+  .connect b { color: var(--ink); }
+  .connect .fine { font-size: 12.5px; color: var(--faint); }
   .loading .grid { opacity: .55; pointer-events: none; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
@@ -369,7 +376,25 @@
     </div>
   </div>
 
-  <footer><span id="sync">Loading…</span><span id="err" class="err" hidden></span></footer>
+  <section class="panel connect" id="connect" hidden aria-labelledby="h-connect">
+    <h2 id="h-connect">Sync across devices</h2>
+    <p>Compass can keep your days in a secret gist on your GitHub account, so your phone and laptop see the same checklist.</p>
+    <ol>
+      <li><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Compass" target="_blank" rel="noopener">Create a GitHub token</a> with only the <b>gist</b> box ticked. Pick "No expiration" or a date you'll remember.</li>
+      <li>Paste it below. Do this once on each device.</li>
+    </ol>
+    <form class="add" id="connect-form" autocomplete="off">
+      <label for="gh-token" class="sr">GitHub token</label>
+      <input id="gh-token" type="password" placeholder="ghp_…" spellcheck="false" autocapitalize="off">
+      <button type="submit" id="connect-btn">Connect</button>
+    </form>
+    <p class="fine">The token is stored only in this browser. It can read and write your gists, nothing else.</p>
+  </section>
+
+  <footer>
+    <span><span id="sync">Loading…</span> <button type="button" class="linkish" id="sync-btn" hidden></button></span>
+    <span id="err" class="err" hidden></span>
+  </footer>
 </div>
 
 <script>
@@ -466,9 +491,12 @@
     save(date);
   }
 
+  const $ = (id) => document.getElementById(id);
+  function setError(msg) { const el = $("err"); el.textContent = msg; el.hidden = !msg; }
+
   // ---------- storage ----------
-  // Artifact db when running on claude.ai; otherwise the bundled server's
-  // JSON API; otherwise this browser only.
+  // Artifact db when running on claude.ai; a GitHub Gist once connected;
+  // otherwise the bundled server's JSON API; otherwise this browser only.
   const saving = {}, again = {};
   async function save(date) {
     if (saving[date]) { again[date] = true; return; }
@@ -494,6 +522,7 @@
   }
 
   const dbStore = (db) => ({
+    kind: "db",
     label: "Synced",
     start() {
       db.collection("days").orderBy("date", "desc").limit(90).onSnapshot(
@@ -509,6 +538,7 @@
   });
 
   const httpStore = () => ({
+    kind: "http",
     label: "Synced",
     async start() {
       const pull = async () => {
@@ -529,30 +559,132 @@
   });
 
   const KEY = "compass.days";
+  const readLocal = () => { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (_) { return {}; } };
   const localStore = () => ({
+    kind: "local",
     label: "Saved on this device only",
-    start() {
-      let days = {};
-      try { days = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (_) {}
-      applyRemote(days);
-    },
+    start() { applyRemote(readLocal()); },
     async saveDay() { localStorage.setItem(KEY, JSON.stringify(state.days)); },
   });
+
+  // Sync through a secret GitHub Gist, for the static GitHub Pages build.
+  // The token (gist scope only) stays in this browser's storage.
+  const GH = "https://api.github.com";
+  const GIST_FILE = "compass-data.json";
+  const TOKEN_KEY = "compass.githubToken", GIST_KEY = "compass.gistId";
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+  const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} };
+
+  const gistStore = (token) => {
+    const gh = async (path, opts = {}) => {
+      const r = await fetch(GH + path, {
+        ...opts, cache: "no-store",
+        headers: { authorization: "Bearer " + token, accept: "application/vnd.github+json", ...(opts.body ? { "content-type": "application/json" } : {}) },
+      });
+      if (!r.ok) { const err = new Error("GitHub " + r.status); err.status = r.status; throw err; }
+      return r.json();
+    };
+    let gistId = lsGet(GIST_KEY);
+
+    async function findOrCreate() {
+      for (let page = 1; page <= 5; page++) {
+        const list = await gh(`/gists?per_page=100&page=${page}`);
+        const hit = list.find((g) => g.files && g.files[GIST_FILE]);
+        if (hit) return hit.id;
+        if (list.length < 100) break;
+      }
+      const created = await gh("/gists", {
+        method: "POST",
+        body: JSON.stringify({ public: false, description: "Compass daily data", files: { [GIST_FILE]: { content: JSON.stringify({ days: readLocal() }) } } }),
+      });
+      return created.id;
+    }
+
+    async function read() {
+      const g = await gh("/gists/" + gistId);
+      const f = g.files && g.files[GIST_FILE];
+      if (!f) return { days: {} };
+      const text = f.truncated ? await (await fetch(f.raw_url, { cache: "no-store" })).text() : f.content;
+      try { return JSON.parse(text || "{}"); } catch (_) { return { days: {} }; }
+    }
+
+    return {
+      kind: "gist",
+      label: "Synced with GitHub",
+      async start() {
+        if (gistId) { try { await gh("/gists/" + gistId); } catch (e) { if (e.status === 404) gistId = null; else throw e; } }
+        if (!gistId) { gistId = await findOrCreate(); lsSet(GIST_KEY, gistId); }
+        const pull = async () => { if (!busy()) applyRemote((await read()).days || {}); };
+        await pull();
+        document.addEventListener("visibilitychange", () => { if (!document.hidden) pull().catch(() => {}); });
+      },
+      async saveDay(date, e) {
+        // Re-read first so a save from this phone doesn't undo another device's day.
+        const data = await read();
+        data.days = data.days || {};
+        data.days[date] = normalize(e, date);
+        await gh("/gists/" + gistId, { method: "PATCH", body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(data) } } }) });
+      },
+    };
+  };
 
   let store;
   async function boot() {
     const c = window.claude;
     const db = c && typeof c.use === "function" ? await c.use("db").catch(() => null) : null;
-    const candidates = db ? [dbStore(db)] : [httpStore(), localStore()];
+    const token = lsGet(TOKEN_KEY);
+    const candidates = db ? [dbStore(db)] : token ? [gistStore(token), localStore()] : [httpStore(), localStore()];
+    let gistFailed = false;
     for (const s of candidates) {
-      try { store = s; await s.start(); break; } catch (_) { store = null; }
+      try { store = s; await s.start(); break; } catch (_) { if (s.kind === "gist") gistFailed = true; store = null; }
     }
-    document.getElementById("sync").textContent = store ? store.label : "";
+    if (gistFailed) setError("Couldn't reach your GitHub sync. Showing this device's copy; check your connection or reconnect below.");
+    renderSync();
   }
 
+  // Footer: sync status, plus the GitHub connect panel where it applies.
+  function renderSync() {
+    $("sync").textContent = store ? store.label : "";
+    const canConnect = store && (store.kind === "local" || store.kind === "gist" || lsGet(TOKEN_KEY));
+    $("sync-btn").hidden = !canConnect;
+    $("sync-btn").textContent = lsGet(TOKEN_KEY) ? "Disconnect GitHub" : "Sync across devices";
+  }
+  $("sync-btn").addEventListener("click", () => {
+    if (lsGet(TOKEN_KEY)) {
+      // Keep a local copy so nothing disappears from this screen.
+      try { localStorage.setItem(KEY, JSON.stringify(state.days)); } catch (_) {}
+      lsSet(TOKEN_KEY, null); lsSet(GIST_KEY, null);
+      store = localStore(); renderSync();
+      return;
+    }
+    $("connect").hidden = !$("connect").hidden;
+    if (!$("connect").hidden) $("gh-token").focus();
+  });
+  $("connect-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const token = $("gh-token").value.trim();
+    if (!token) return;
+    const btn = $("connect-btn");
+    btn.disabled = true; btn.textContent = "Connecting…";
+    try {
+      const s = gistStore(token);
+      await s.start();
+      lsSet(TOKEN_KEY, token);
+      store = s;
+      // Push anything this device had that the gist doesn't.
+      for (const [date, e] of Object.entries(readLocal())) {
+        if (!state.days[date]) { state.days[date] = e; save(date); }
+      }
+      $("connect").hidden = true; $("gh-token").value = ""; setError("");
+      renderSync(); render();
+    } catch (e) {
+      setError(e.status === 401 ? "GitHub didn't accept that token. Create one with the gist scope and paste it again." : "Couldn't connect to GitHub. Check your connection and try again.");
+    } finally {
+      btn.disabled = false; btn.textContent = "Connect";
+    }
+  });
+
   // ---------- render ----------
-  const $ = (id) => document.getElementById(id);
-  function setError(msg) { const el = $("err"); el.textContent = msg; el.hidden = !msg; }
 
   function checkRow({ key, checked, text, meta, carried, onToggle }) {
     const b = document.createElement("button");

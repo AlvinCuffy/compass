@@ -8,18 +8,7 @@ const path = require("path");
 
 const PORT = Number(process.env.PORT) || 3000;
 const DATA = process.env.COMPASS_DATA || path.join(__dirname, "data", "compass.json");
-const PAGE = path.join(__dirname, "public", "compass.html");
-
-// The page is written as a body fragment (it is also published as a claude.ai
-// Artifact, which supplies the document skeleton), so wrap it here.
-const SKELETON_HEAD =
-  '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
-  '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
-  '<meta name="apple-mobile-web-app-capable" content="yes">' +
-  '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">' +
-  '<meta name="theme-color" content="#070B1C">' +
-  "<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}" +
-  "body{margin:0}[hidden]{display:none!important}</style></head><body>";
+const { renderPage } = require("./page");
 
 function readData() {
   try {
@@ -53,7 +42,7 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, "http://localhost");
 
   if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
-    return send(res, 200, SKELETON_HEAD + fs.readFileSync(PAGE, "utf8") + "</body></html>", "text/html; charset=utf-8");
+    return send(res, 200, renderPage(), "text/html; charset=utf-8");
   }
 
   if (req.method === "GET" && url.pathname === "/api/days") {
