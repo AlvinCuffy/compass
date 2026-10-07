@@ -1,3 +1,8 @@
 node_modules/
 data/
 dist/
+
+# renderer outputs (regenerate with lipsync.py; not source)
+tools/lipsync/demo/*.mp4
+tools/lipsync/demo/*.wav
+__pycache__/

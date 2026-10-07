@@ -1,0 +1,8 @@
+# Versions verified together on this machine (Python 3.11, CPU only).
+numpy>=2.0
+mediapipe==0.10.14
+opencv-contrib-python-headless>=4.10   # headless: no libGL in this sandbox
+imageio-ffmpeg>=0.5                    # ships a static ffmpeg binary
+scipy>=1.13
+pillow>=10.0                           # EXIF-aware image loading
+soundfile>=0.12                        # only needed by make_demo_audio.py
