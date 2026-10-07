@@ -31,6 +31,8 @@ import sys
 
 AUDIO_EXT = (".mp3", ".m4a", ".aac", ".wav", ".flac", ".ogg", ".oga", ".opus",
              ".aif", ".aiff", ".wma", ".webm", ".mp4", ".mov", ".mkv")
+IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff")
+WANTED_EXT = AUDIO_EXT + IMAGE_EXT
 
 
 def have(cmd: str) -> bool:
@@ -67,11 +69,14 @@ def default_branch(repo: str) -> str:
     return json.loads(gh_api(f"/repos/{repo}"))["default_branch"]
 
 
-def tree_audio(repo: str, branch: str) -> list[dict]:
+def tree_audio(repo: str, branch: str, exts=None) -> list[dict]:
+    """Media files in a repo, largest first. Images are included: a portrait
+    often arrives by the same route as the audio."""
+    exts = exts or WANTED_EXT
     data = json.loads(gh_api(f"/repos/{repo}/git/trees/{branch}?recursive=1"))
     out = []
     for node in data.get("tree", []):
-        if node.get("type") == "blob" and node["path"].lower().endswith(AUDIO_EXT):
+        if node.get("type") == "blob" and node["path"].lower().endswith(exts):
             out.append({"path": node["path"], "sha": node["sha"], "size": node.get("size", 0)})
     return sorted(out, key=lambda n: -n["size"])
 
@@ -113,6 +118,10 @@ def main(argv=None) -> int:
     p.add_argument("--branch", default=None, help="defaults to the repo's default branch")
     p.add_argument("--path", default=None, help="exact path within the repo")
     p.add_argument("-o", "--out", default=None, help="where to save it")
+    p.add_argument("--audio-only", action="store_true",
+                   help="ignore images; pick the largest audio file")
+    p.add_argument("--expect", choices=["audio", "image"], default="audio",
+                   help="decode-check as audio (default) or just confirm it is an image")
     p.add_argument("--render", action="store_true", help="render immediately after fetching")
     p.add_argument("--image", default=None)
     p.add_argument("--out-video", default="out.mp4", help="rendered video path")
@@ -140,13 +149,28 @@ def main(argv=None) -> int:
                      os.path.basename(n["path"]) == os.path.basename(args.path)]
             if not found:
                 continue
+        kind = "audio" if args.audio_only else "media"
+        if args.audio_only:
+            found = [n for n in found if n["path"].lower().endswith(AUDIO_EXT)]
+            if not found:
+                continue
         node = found[0]
-        print(f"  {repo} @ {branch}: {len(found)} audio file(s), taking the largest")
+        print(f"  {repo} @ {branch}: {len(found)} {kind} file(s), taking the largest")
         out = args.out or os.path.basename(node["path"])
         sha = download(repo, node, out)
-        info = probe(out)
         print(f"  saved    : {out}  ({node['size']/1e6:.2f} MB)")
         print(f"  verified : sha1 {sha[:12]} matches GitHub's recorded hash")
+        if args.expect == "image":
+            with open(out, "rb") as f:
+                head = f.read(16)
+            is_img = head[:8] == b"\x89PNG\r\n\x1a\n" or head[:2] == b"\xff\xd8" \
+                or head[:4] == b"RIFF" or head[:6] in (b"GIF87a", b"GIF89a")
+            print(f"  image    : {'recognised' if is_img else 'NOT a recognised image format'}")
+            if not is_img:
+                raise SystemExit("that file is not an image")
+            print(f"\n  next: python3 lipsync.py --image '{out}' --audio music.mp3 --out talking.mp4")
+            return 0
+        info = probe(out)
         print(f"  audio    : {json.dumps(info)}")
         if not info.get("decodable"):
             raise SystemExit("that file is not decodable audio")
