@@ -6,3 +6,5 @@ dist/
 tools/lipsync/demo/*.mp4
 tools/lipsync/demo/*.wav
 __pycache__/
+tools/lipsync/assets/*
+!tools/lipsync/assets/.gitkeep
