@@ -40,6 +40,42 @@ For every frame, the audio's **vocal-band energy** (250 Hz–4 kHz) and its
 `--mode music` keeps the mouth shut and leaves everything else running, which is
 handy for an instrumental section.
 
+## Getting the audio in
+
+The chat uploader accepts **only** `png/webp/jpeg/gif`, `txt/md/csv/html/xml/css/js`,
+`json/xml`, and `pdf`. No audio, no video, no archives -- so a track cannot be
+attached directly. Two scripts in here get one across:
+
+**From a public GitHub repo** (works for any size, no conversion). Upload the file
+to a public repo, then:
+
+```bash
+python3 fetch_audio.py --repo AlvinCuffy/audio-temp        # auto-picks the file
+python3 fetch_audio.py --repo X --path "Even Here.mp3" -o music.mp3
+python3 fetch_audio.py --user AlvinCuffy                   # scan all public repos
+```
+
+It pulls the bytes straight from the git object store and checks the SHA-1 against
+GitHub's own recorded hash, so a truncated download fails loudly instead of
+rendering something broken. Add `--render --image face.png --out-video out.mp4`
+to go straight from fetch to finished video.
+
+**From a `.txt`** (`from_base64.py`) handles both of these:
+
+* you renamed `song.mp3` to `song.txt` and the uploader only checked the
+  extension -- the bytes are the audio, and the magic number gives it away;
+* the text really is base64 -- plain, or PEM-wrapped by Windows'
+  `certutil -encode "Even Here.mp3" audio.txt`, or a `data:` URI, or a JSON string.
+
+```bash
+python3 from_base64.py audio.txt                 # extension is sniffed
+python3 from_base64.py audio.txt --ext mp3 -o music.mp3
+```
+
+Base64 is ~33% larger than the file it carries, so for anything long convert to a
+low-bitrate mono MP3 first -- the renderer only needs the vocal band, and 64 kbps
+mono drives the mouth identically while being a fraction of the size.
+
 ## Options
 
 | flag | default | meaning |
