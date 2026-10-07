@@ -46,15 +46,26 @@ def hat(dur: float = 0.05, gain: float = 0.12) -> np.ndarray:
     return (rng.standard_normal(n) * np.exp(-np.arange(n) / (0.008 * SR)) * gain).astype(np.float32)
 
 
-N = lambda name: {'C': 0, 'Dm': 1, 'F': 2, 'G': 3}[name]
 PROG = [('C', [261.63, 329.63, 392.00]), ('G', [196.00, 246.94, 293.66]),
         ('Dm', [220.00, 261.63, 329.63]), ('F', [174.61, 220.00, 261.63])]
 
 
+def add(buf: np.ndarray, i: int, sig: np.ndarray) -> None:
+    """Mix `sig` into `buf` at offset `i`, clipping at the end of the buffer.
+
+    Notes scheduled near the end of the track run past it -- a bar is rendered
+    whole even when it starts late, so the tail must be safe to cut.
+    """
+    if i >= len(buf) or i < 0:
+        return
+    n = min(len(sig), len(buf) - i)
+    buf[i:i + n] += sig[:n]
+
+
 def build(seconds: float, bpm: float = 108.0) -> np.ndarray:
     total = int(seconds * SR)
-    mix = np.zeros(total + SR, dtype=np.float32)
     bar = 4 * 60.0 / bpm                     # 4 beats per bar
+    mix = np.zeros(total + int((bar + 1.0) * SR), dtype=np.float32)
     eighth = bar / 8
 
     k, h = kick(), hat()
@@ -64,21 +75,17 @@ def build(seconds: float, bpm: float = 108.0) -> np.ndarray:
         root, chord = PROG[bar_i % len(PROG)]
         # bass on beats 1 and 3
         for b in (0.0, 2 * 60.0 / bpm):
-            v = voice(chord[0] / 2, bar * 0.42, harmonics=(1.0, 0.35, 0.12), gain=0.30, vibrato=0.0)
-            i = int((t + b) * SR)
-            mix[i:i + len(v)] += v
+            add(mix, int((t + b) * SR),
+                voice(chord[0] / 2, bar * 0.42, harmonics=(1.0, 0.35, 0.12),
+                      gain=0.30, vibrato=0.0))
         # arpeggio across the bar
         for e in range(8):
             note = chord[e % 3] * (2 if e >= 6 else 1)
-            p = pluck(note, eighth * 1.6, 0.34)
-            i = int((t + e * eighth) * SR)
-            mix[i:i + len(p)] += p
+            add(mix, int((t + e * eighth) * SR), pluck(note, eighth * 1.6, 0.34))
         # kick on beats, hats offbeat
         for b in range(4):
-            i = int((t + b * 60.0 / bpm) * SR)
-            mix[i:i + len(k)] += k
-            j = int((t + (b + 0.5) * 60.0 / bpm) * SR)
-            mix[j:j + len(h)] += h
+            add(mix, int((t + b * 60.0 / bpm) * SR), k)
+            add(mix, int((t + (b + 0.5) * 60.0 / bpm) * SR), h)
         t += bar
         bar_i += 1
 
